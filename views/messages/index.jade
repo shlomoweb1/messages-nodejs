@@ -1,0 +1,34 @@
+extends ../layout
+
+block content
+    div.container
+        a(href='/messages/new', class='btn btn-info pull-right') <i class="glyphicon glyphicon-pencil"></i> New
+        h1.
+            #{title}
+
+        div.searchContainer
+            form(action='/messages',method='get',enctype='application/x-www-form-urlencoded')
+            input(type='hidden',value='GET',name='_method')
+            div.col-xs-1
+                label limit
+                input(type='text',placeholder='5',name='limit', class='form-control text-center')            
+            div.col-xs-2
+                label sort Messages
+                select(name='orderBy', class='form-control')
+                    -for(var i = 1;i<10;i++){
+                    option(value="#{i}") Some value for #{i}
+                    -}
+
+        div.col-xs-12        
+            ul.list-unstyled.allMessages
+                - each message, i in messages
+                    li
+                        h3 #{message.title} <small>(#{message.created})</small>
+                        p=message.message
+                        div.actions
+                            form(action='/messages/#{message._id}/edit',method='post',enctype='application/x-www-form-urlencoded')
+                                input(type='hidden',value='DELETE',name='_method')
+                                button(type='submit', class='btn btn-danger').
+                                    <i class="glyphicon glyphicon-trash"></i> Delete 
+                            a(href='/messages/#{message._id}/edit', class='btn btn-success') <i class="glyphicon glyphicon-pencil"></i> Edit
+                            a(href='/messages/#{message._id}', class='btn btn-primary') <i class="glyphicon glyphicon-eye-open"></i> Show

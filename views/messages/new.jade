@@ -1,0 +1,12 @@
+extends ../layout
+
+block content
+    h1.
+        #{title}
+    form#formAddBlob(name="addMessage",method="post",action="/messages")
+        p Name: 
+            input#inputTitle(type="text", placeholder="Insert a title here", name="title")
+        p Message:
+            textarea#textareaMessage(placeholder="Insert your message here.", name="message")
+        p
+            button#btnSubmit(type="submit") submit
