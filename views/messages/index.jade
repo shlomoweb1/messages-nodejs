@@ -7,17 +7,23 @@ block content
             #{title}
 
         div.searchContainer
-            form(action='/messages',method='get',enctype='application/x-www-form-urlencoded')
-            input(type='hidden',value='GET',name='_method')
-            div.col-xs-1
-                label limit
-                input(type='text',placeholder='5',name='limit', class='form-control text-center')            
-            div.col-xs-2
-                label sort Messages
-                select(name='orderBy', class='form-control')
-                    -for(var i = 1;i<10;i++){
-                    option(value="#{i}") Some value for #{i}
-                    -}
+            form(method='get',enctype='application/x-www-form-urlencoded')
+                input(type='hidden',value='GET',name='_method')
+                div.col-xs-1
+                    label limit
+                    input(type='text',placeholder='5',name='limit', class='form-control text-center')            
+                div.col-xs-2
+                    label sort Messages
+                    select(name='orderBy', class='form-control')
+                        - each filter, i in filters
+                            -if(filter.selected)
+                                option(value="#{filter.key}", selected) #{filter.value}
+                            -else
+                                option(value="#{filter.key}") #{filter.value}
+                div.col-xs-1
+                    label action
+                    button(class='btn btn-primary')
+                        <span>filter</span>
 
         div.col-xs-12        
             ul.list-unstyled.allMessages
@@ -32,3 +38,38 @@ block content
                                     <i class="glyphicon glyphicon-trash"></i> Delete 
                             a(href='/messages/#{message._id}/edit', class='btn btn-success') <i class="glyphicon glyphicon-pencil"></i> Edit
                             a(href='/messages/#{message._id}', class='btn btn-primary') <i class="glyphicon glyphicon-eye-open"></i> Show
+        //div.col-xs-12 
+            nav
+                ul.pagination
+                    -if (page != 0)
+                        li
+                    -else
+                        li.disabled
+                            -if (page != 0)
+                                a(href='/messages?page=#{page-1}', aria-label='Previous') 
+                            -else
+                                a(href='/messages?page=1', aria-label='Previous') 
+                                    <span aria-hidden="true">&laquo;</span>
+                        - for (var i = 0; i < pages+1; ++i) {
+                            li
+                                a(href='/messages?page=#{i+1}')
+                                     =i+1
+                        - }
+                        li
+                             a(href='/messages?page=#{pages+1}', aria-label='Next')
+                                <span aria-hidden="true">&raquo;</span>
+        -if (pagination)
+            div.col-xs-12 
+                nav
+                    ul.pagination
+                            li
+                                a(href='/messages?page=#{PrevPage}', aria-label='Previous') 
+                                     <span aria-hidden="true">&laquo;</span>
+                            - for (var i = 0; i < pages+1; ++i) {
+                                li
+                                    a(href='/messages?page=#{i+1}')
+                                         =i+1
+                            - }
+                            li
+                                 a(href='/messages?page=#{pages+1}', aria-label='Next')
+                                    <span aria-hidden="true">&raquo;</span>

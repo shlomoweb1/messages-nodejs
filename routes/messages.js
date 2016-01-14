@@ -22,26 +22,70 @@ router.use(methodOverride(function(req, res){
 router.route('/')
     //GET all blobs
     .get(function(req, res, next) {
+
+    	var defaultSort = {'title': 'desc', 'date': 'asc'};
+    	var perPage = 5;
+    	var page = 0; // pages start from 0
+    	var tableRows = 0;
+    	var sort = {created: 'asc'};
+    	var filters = {};
+    	filters.created_asc = {'key': 'created_asc', 'value': 'Date [A-Z]', 'selected': false};
+    	filters.created_desc = {'key': 'created_desc', 'value': 'Date [Z-A]', 'selected': false};
+    	filters.title_asc = {'key': 'title_asc', 'value': 'Title [A-Z]', 'selected': false};
+    	filters.title_desc = {'key': 'title_desc', 'value': 'Title [Z-A]', 'selected': false};
+    	filters.messsage_asc = {'key': 'message_asc', 'value': 'Message [A-Z]', 'selected': false};
+    	filters.message_desc = {'key': 'message_desc', 'value': 'Message [Z-A]', 'selected': false};
+
+
+    	if(!isNaN(req.query.page))
+    		page = parseInt(req.query.page) -1;
+
+    	if(!isNaN(req.query.limit))
+    		perPage = parseInt(req.query.limit)
+
+    	if(req.query.orderBy in filters){
+    		filters[req.query.orderBy].selected = true;
+    		sortArr = (req.query.orderBy).split("_");    		
+    		sort = {};
+    		sort[sortArr[0]] = (sortArr[1] === 'asc')?1:-1;
+    	}
+
+    	var PrevPage = (page -1) < 0?1:page;
+
         //retrieve all blobs from Monogo
-        // criteria can be asc, desc, ascending, descending, 1, or -1
-        mongoose.model('Messages').find({}).sort({created: 1}).exec(function (err, messages) {
+        
+        mongoose.model('Messages')
+        	.find({})
+        	.sort(sort) // criteria can be asc, desc, ascending, descending, 1, or -1
+        	.limit(perPage)
+        	.skip(perPage * page)
+        	.exec(function (err, messages) {
               if (err) {
                   return console.error(err);
               } else {
-                  //respond to both HTML and JSON. JSON responses require 'Accept: application/json;' in the Request Header
-                  res.format({
-                      //HTML response will render the index.jade file in the views/blobs folder. We are also setting "blobs" to be an accessible variable in our jade view
-                    html: function(){
-                        res.render('messages/index', {
-                              title: 'All my messages',
-                              "messages" : messages
-                          });
-                    },
-                    //JSON response will show all blobs in JSON format
-                    json: function(){
-                        res.json(messages);
-                    }
-                });
+
+			    mongoose.model('Messages').count().exec(function(err, count) {
+		    		if (err) {
+		                  return console.error(err);
+		            }
+		            var NextPage = (page > count)?page-1:page;
+		            var data = {"messages" : messages, "page": page, "pages": Math.ceil(count / perPage) -1, "PrevPage": PrevPage, "NextPage": NextPage}
+	                //respond to both HTML and JSON. JSON responses require 'Accept: application/json;' in the Request Header
+	                res.format({
+	                      //HTML response will render the index.jade file in the views/blobs folder. We are also setting "blobs" to be an accessible variable in our jade view
+	                    html: function(){
+	                    	data["title"] = 'All my messages';
+	                    	data["filters"] = filters;
+	                    	data["pagination"] = (Math.ceil(count / perPage) > 1);
+	                        res.render('messages/index', data);
+	                    },
+	                    //JSON response will show all blobs in JSON format
+	                    json: function(){
+	                        res.json(data);
+	                    }
+	                });
+	                // console.log(data);
+		    	});
               }     
         });
     })
