@@ -3,10 +3,8 @@ var path = require('path');
 var favicon = require('serve-favicon');
 var logger = require('morgan');
 var cookieParser = require('cookie-parser');
-var bodyParser = require('body-parser');
 var db = require('./models/db');
 var messagesModel = require('./models/messages.js');
-
 var routes = require('./routes/index');
 var messagesController = require('./routes/messages');
 
@@ -17,8 +15,8 @@ var app = express();
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'jade');
 
-//Use middleware
-app.use(bodyParser());
+
+
 app.use(pizzaDebug);
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/frameworks', express.static(__dirname + '/node_modules/bootstrap/dist/'));
@@ -34,7 +32,6 @@ function pizzaDebug (req,res,next) {
 
 app.use('/', routes);
 app.use('/messages', messagesController);
-
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
   var err = new Error('Not Found');

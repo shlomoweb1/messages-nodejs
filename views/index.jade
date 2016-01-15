@@ -1,5 +1,16 @@
 extends layout
-
 block content
-  h1= title
-  p Welcome to #{title}
+  div.container
+    h1.
+        #{title}
+    a(href='/messages', class='btn btn-primary').
+      Click to enter
+
+    p
+     To enter dummy data use the link
+     a(href='/messages/dummy/10', class='btn btn-link').
+      10 dummy data
+    p 
+     To Delete all data
+     a(href='/messages/dummy/removeAll', class='btn btn-link').
+      Remove all data

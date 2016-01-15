@@ -1,10 +1,14 @@
 /* Messages Controller */
 var express = require('express'); // must for nodeJS
 var router = express.Router(); // must for nodeJS
+var multiparty = require('multiparty');
+const fs = require('fs');
 
 var mongoose = require('mongoose'), //mongo connection
     bodyParser = require('body-parser'), //parses information from POST
     methodOverride = require('method-override'); //used to manipulate POST
+
+
 
 // Using use will make sure that every requests that hits this controller will pass through these functions.
 router.use(bodyParser.urlencoded({ extended: true }))
@@ -16,6 +20,64 @@ router.use(methodOverride(function(req, res){
         return method
       }
 }));
+
+
+router.route('/dummy/removeAll').get(function(req, res, next){
+   mongoose.model('Messages').remove({}, function(err,removed) {
+              if (err) {
+                  res.send("There was a problem adding the information to the database.");
+              } else {
+                  res.format({
+                      //HTML response will set the location and redirect back to the home page. 
+                      //You could also create a 'success' page if that's your thing
+                    html: function(){
+                        // If it worked, set the header so the address bar doesn't still say /adduser
+                        res.location("messages");
+                        // And forward to success page
+                        res.redirect("/messages");
+                    },
+                    //JSON response will show the newly created blob
+                    json: function(){
+                        res.json(db);
+                    }
+                });
+              }
+  }); 
+})
+
+router.route('/dummy/:num?').get(function(req, res, next){
+    var loremIpsum = require('lorem-ipsum');
+    var messages = [];
+    var amount = (!isNaN(req.params.num))?req.params.num:5;
+    for(num=1; num <= amount; num++){
+      messages.push({'title': loremIpsum({count: 2, units: 'words'}), 'message': loremIpsum({count: 5, units: 'sentences'})});
+    }
+    (mongoose.model('Messages')).collection.insert(messages, onInsert); 
+
+    function onInsert(err, db) {
+        if (err) {
+             res.send("There was a problem adding the information to the database.");
+              return;
+        } else {
+                  console.log('Created dummy messages: ' + db.result.n) //JSON.stringify(db));
+                  res.format({
+                      //HTML response will set the location and redirect back to the home page. 
+                      //You could also create a 'success' page if that's your thing
+                    html: function(){
+                        // If it worked, set the header so the address bar doesn't still say /adduser
+                        res.location("messages");
+                        // And forward to success page
+                        res.redirect("/messages");
+                    },
+                    //JSON response will show the newly created blob
+                    json: function(){
+                        res.json(db);
+                    }
+                });
+
+        }
+    }
+});
 
 //build the REST operations at the base for blobs
 //this will be accessible from http://127.0.0.1:3000/messages if the default route for / is left unchanged
@@ -92,45 +154,87 @@ router.route('/')
     //POST a new Message
     .post(function(req, res) {
         // Get values from POST request. These can be done through forms or REST calls. These rely on the "name" attributes for forms
-        var title = req.body.title,
-            message = req.body.message;
 
-         if(title.length == 0 || message.length == 0){
-         	if(title.length == 0 && message.length != 0){
-         		res.send("A title is required.");
-         	}else if(title.length != 0 && message.length == 0){
-         		res.send("A message is required.");
-         	}else if(title.length == 0 && message.length == 0){
-         		res.send("A title & a message is required.");
-         	}  	 
-         	 return false; // Exit with error message
-         }
-        //call the create function for our database
-        mongoose.model('Messages').create({
-            title : title,
-            message : message
-        }, function (err, db) {
-              if (err) {
-                  res.send("There was a problem adding the information to the database.");
-              } else {
-                  //Blob has been created
-                  console.log('POST creating new message: ' + db);
-                  res.format({
-                      //HTML response will set the location and redirect back to the home page. 
-                      //You could also create a 'success' page if that's your thing
-                    html: function(){
-                        // If it worked, set the header so the address bar doesn't still say /adduser
-                        res.location("messages");
-                        // And forward to success page
-                        res.redirect("/messages");
-                    },
-                    //JSON response will show the newly created blob
-                    json: function(){
-                        res.json(db);
+        var form = new multiparty.Form();
+        form.parse(req, function(err, fields, files) {
+         // console.log('multiparty', err, fields, files);
+          req.fields = fields;
+          req.files = files;
+          insertCallback(req, res);
+        });
+
+        function insertCallback(req, res){
+          //console.log(req.fields, req.files, res);
+          var title = req.fields.title;
+          var message = req.fields.message;
+          if(title.length == 0 || message.length == 0){
+            if(title.length == 0 && message.length != 0){
+              res.send("A title is required.");
+            }else if(title.length != 0 && message.length == 0){
+              res.send("A message is required.");
+            }else if(title.length == 0 && message.length == 0){
+              res.send("A title & a message is required.");
+            }    
+            return false; // Exit with error message
+          }
+
+          //call the create function for our database
+          mongoose.model('Messages').create({
+              title : title,
+              message : message
+          }, function (err, db) {
+                if (err) {
+                    res.send("There was a problem adding the information to the database.");
+                } else {
+                    //Message has been created
+                    console.log('POST creating new message: ' + db);
+                   // console.log(req.files.logName, (req.files.logName).length);
+                    // Has attachment
+                    if((req.files.file).length == 1 && req.files.file[0].originalFilename != ''){
+                      var tempfile = req.files.file[0].path;
+                      fs.readFile(tempfile, function (err, data) {
+                        var fileExt = (tempfile).split(".");
+                        fileExt = fileExt[fileExt.length - 1];
+                        var newPath = __dirname + "/../public/uploads/message_"+db._id+"."+fileExt;
+                        console.log('new path', newPath)
+                        fs.writeFile(newPath, data, function (err) {
+                          mongoose.model('Messages').update({ _id: db._id }, {attachment: "message_"+db._id+"."+fileExt, originalFilename: req.files.file[0].originalFilename}, {}, function(err, doc){
+                            console.log(doc);
+                            res.format({
+                                html: function(){
+                                  res.location("messages"); // If it worked, set the header so the address bar doesn't still say /messages
+                                  res.redirect("/messages"); // And forward to success page
+                                },
+                                json: function(){
+                                  db.attachement = "/public/uploads/message_"+db._id+"."+fileExt;
+                                  res.json(db);
+                                }
+                            });
+                          });
+                        });
+                      }); 
+                      return;                  
                     }
-                });
-              }
-        })
+
+                    // No file attached
+                    res.format({
+                        //HTML response will set the location and redirect back to the home page. 
+                        //You could also create a 'success' page if that's your thing
+                      html: function(){
+                          // If it worked, set the header so the address bar doesn't still say /messages
+                          res.location("messages");
+                          // And forward to success page
+                          res.redirect("/messages");
+                      },
+                      //JSON response will show the newly created blob
+                      json: function(){
+                          res.json(db);
+                      }
+                  });
+                }
+          }); // End Create Message
+        }
+        return;
     });
 
 // web GUI to insert message
@@ -213,9 +317,7 @@ router.get('/:id/edit', function(req, res) {
                 html: function(){
                        res.render('messages/edit', {
                           title: 'Messages' + messages._id,
-                          "titleMessage" : title,
-                          "message" : message,
-                          "created" : created
+                          "message" : messages,
                       });
                  },
                  //JSON response will return the JSON output
@@ -227,47 +329,69 @@ router.get('/:id/edit', function(req, res) {
     });
 });
 
-//PUT to update a message by ID
-router.put('/:id/edit', function(req, res) {
+//POST to update a message by ID
+router.post('/:id/edit', function(req, res) {
     // Get our REST or form values. These rely on the "name" attributes
-    var title = req.body.title;
-    var message = req.body.message;
 
-    if(title.length == 0 || message.length == 0){
-         	if(title.length == 0 && message.length != 0){
-         		res.send("A title is required.");
-         	}else if(title.length != 0 && message.length == 0){
-         		res.send("A message is required.");
-         	}else if(title.length == 0 && message.length == 0){
-         		res.send("A title & a message is required.");
-         	}  	 
-         	 return false; // Exit with error message
-    }
 
-   //find the document by ID
-        mongoose.model('Message').findById(req.id, function (err, message) {
-            //update it
-            message.update({
-                title : title,
-                message : message
-            }, function (err, blobID) {
+        var form = new multiparty.Form();
+        form.parse(req, function(err, fields, files) {
+         // console.log('multiparty', err, fields, files);
+          req.fields = fields;
+          req.files = files;
+
+          var title = req.fields.title;
+          var message = req.fields.message;
+
+          if(title.length == 0 || message.length == 0){
+            if(title.length == 0 && message.length != 0){
+              res.send("A title is required.");
+            }else if(title.length != 0 && message.length == 0){
+              res.send("A message is required.");
+            }else if(title.length == 0 && message.length == 0){
+              res.send("A title & a message is required.");
+            }    
+           return false; // Exit with error message
+           }
+          updateCallback(req, res);
+        });
+
+        function updateCallback(req, res){
+          // check id exist
+          mongoose.model('Messages').findById(req.params.id, function (err, message) {
               if (err) {
                   res.send("There was a problem updating the information to the database: " + err);
-              } 
-              else {
-                      //HTML responds by going back to the page or you can be fancy and create a new view that shows a success page.
-                      res.format({
-                          html: function(){
-                               res.redirect("/messages/" + blob._id);
-                         },
-                         //JSON responds showing the updated values
-                        json: function(){
-                               res.json(message);
-                         }
+                  return false;
+              }else{
+                // check if file uploaded, then delete previous
+                if((req.files.file).length == 1 && req.files.file[0].originalFilename != ''){
+                  fs.unlink(__dirname + "/../public/uploads/"+req.fields.curr_file, function(){
+                    var tempfile = req.files.file[0].path;
+                    fs.readFile(tempfile, function (err, data) {
+                      var fileExt = (tempfile).split(".");
+                      fileExt = fileExt[fileExt.length - 1];
+                      var newPath = __dirname + "/../public/uploads/message_"+req.params.id+"."+fileExt;
+                      fs.writeFile(newPath, data, function (err) {
+                        var attachment = "message_"+req.params.id+"."+fileExt;
+                        mongoose.model('Messages').update({ _id: req.params.id }, {attachment: attachment, originalFilename: req.files.file[0].originalFilename,title: req.fields.title, message: req.fields.message}, {}, function(err, doc){
+                          res.format({
+                              html: function(){
+                                res.location("messages"); // If it worked, set the header so the address bar doesn't still say /messages
+                                res.redirect("/messages"); // And forward to success page
+                              },
+                              json: function(){
+                                db.attachement = "/public/uploads/message_"+db._id+"."+fileExt;
+                                res.json(db);
+                              }
+                          });
+                        });
                       });
-               }
-            })
-        });
+                    }); 
+                  });
+              }
+            }
+          });
+        };
 });
 
 //DELETE a Message by ID

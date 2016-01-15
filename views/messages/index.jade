@@ -31,13 +31,17 @@ block content
                     li
                         h3 #{message.title} <small>(#{message.created})</small>
                         p=message.message
+
                         div.actions
                             form(action='/messages/#{message._id}/edit',method='post',enctype='application/x-www-form-urlencoded')
                                 input(type='hidden',value='DELETE',name='_method')
                                 button(type='submit', class='btn btn-danger').
                                     <i class="glyphicon glyphicon-trash"></i> Delete 
                             a(href='/messages/#{message._id}/edit', class='btn btn-success') <i class="glyphicon glyphicon-pencil"></i> Edit
-                            a(href='/messages/#{message._id}', class='btn btn-primary') <i class="glyphicon glyphicon-eye-open"></i> Show
+                            -if (message.attachment){
+                                a(href='/uploads/#{message.attachment}', class='btn btn-primary').
+                                    <i class="glyphicon glyphicon-pushpin"></i> Attachment
+                            -}
         //div.col-xs-12 
             nav
                 ul.pagination

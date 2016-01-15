@@ -1,5 +1,21 @@
 extends ../layout
 
 block content
+  div.container
     h1.
         #{title}
+    form#formAddMessage(name="addMessage",method="post",action="/messages/#{message.id}/edit", enctype="multipart/form-data")
+        p Name: 
+            input#inputTitle(type="text", placeholder="Insert a title here", name="title", class="form-control", value='#{message.title}')
+        p Message:
+            textarea#textareaMessage(placeholder="Insert your message here.", name="message", class="form-control") #{message.message}
+        p Attachment:
+            input#userInputFile(type="file", name="file", class="form-control")
+        -if (message.attachment){
+            a(href='/uploads/#{message.attachment}', class='btn btn-link').
+                <i class="glyphicon glyphicon-pushpin"></i> #{message.originalFilename}
+            input(type="hidden", name="curr_file", value="#{message.attachment}")
+        -}
+        input(type='hidden',value='PUT',name='_method')
+        p
+            button#btnSubmit(type="submit", class="btn btn-primary pull-right") submit
